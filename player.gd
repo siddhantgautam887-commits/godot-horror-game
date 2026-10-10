@@ -10,10 +10,10 @@ var is_sprinting: bool = false
 
 # Camera and look variables
 @onready var camera: Camera3D = $Camera3D
-@onready var head: Node3D = $Head
 @export var mouse_sensitivity: float = 0.003
 @export var min_pitch: float = -PI / 2
 @export var max_pitch: float = PI / 2
+var camera_pitch: float = 0.0
 
 # Inventory and equipment
 var inventory: Dictionary = {
@@ -68,6 +68,10 @@ func _ready():
 	
 	# Initialize sanity
 	current_sanity = max_sanity
+	
+	# Check if camera exists
+	if camera == null:
+		push_error("Camera3D not found! Add a Camera3D node as a child of Player")
 
 func _process(delta: float) -> void:
 	handle_input()
@@ -144,7 +148,7 @@ func handle_movement(delta: float) -> void:
 # ============================================================================
 
 func update_camera_look() -> void:
-	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED or camera == null:
 		return
 	
 	var mouse_velocity = Input.get_last_mouse_velocity()
@@ -154,9 +158,8 @@ func update_camera_look() -> void:
 	
 	# Vertical rotation (camera pitch)
 	var pitch_change = -mouse_velocity.y * mouse_sensitivity
-	var new_pitch = camera.rotation.x + pitch_change
-	new_pitch = clamp(new_pitch, min_pitch, max_pitch)
-	camera.rotation.x = new_pitch
+	camera_pitch = clamp(camera_pitch + pitch_change, min_pitch, max_pitch)
+	camera.rotation.x = camera_pitch
 
 # ============================================================================
 # TORCH SYSTEM
@@ -170,19 +173,22 @@ func toggle_torch() -> void:
 	update_torch_state()
 
 func update_torch_state() -> void:
-	if torch and torch.has_node("OmniLight3D"):
+	if torch == null:
+		return
+	
+	if torch.has_node("OmniLight3D"):
 		var light = torch.get_node("OmniLight3D")
 		light.visible = torch_on
 
 func handle_torch_flicker(delta: float) -> void:
-	if not torch_on:
+	if not torch_on or torch == null:
 		return
 	
 	flicker_timer += delta
 	
 	# Random flicker chance
 	if randf() < torch_flicker_chance:
-		if torch and torch.has_node("OmniLight3D"):
+		if torch.has_node("OmniLight3D"):
 			var light = torch.get_node("OmniLight3D")
 			# Flicker effect - reduce brightness
 			light.energy_multiplier = torch_brightness * randf_range(0.3, 1.0)
@@ -245,7 +251,7 @@ func update_sanity(delta: float) -> void:
 
 func apply_fear_effects() -> void:
 	# Apply visual/audio distortions when sanity is critically low
-	if randf() < 0.02:  # 2% chance per frame
+	if randf() < 0.02 and camera != null:  # 2% chance per frame
 		# Screen shake or distortion effects
 		camera.position += Vector3(randf_range(-0.05, 0.05), randf_range(-0.05, 0.05), 0)
 		await get_tree().create_timer(0.1).timeout
@@ -260,6 +266,9 @@ func take_scare_damage(intensity: float) -> void:
 # ============================================================================
 
 func update_heartbeat(delta: float) -> void:
+	if heartbeat_player == null:
+		return
+	
 	var sanity_ratio = current_sanity / max_sanity
 	
 	if sanity_ratio < 0.5:
@@ -282,7 +291,7 @@ func play_footsteps() -> void:
 		return
 	
 	# Play footstep sound - placeholder
-	if not footstep_player.playing and current_speed > 0:
+	if footstep_player != null and not footstep_player.playing and current_speed > 0:
 		# Randomize footstep sound
 		pass
 
@@ -292,7 +301,7 @@ func play_footsteps() -> void:
 
 func play_ambient_sound() -> void:
 	# Play background ambient horror sounds
-	if ambient_player:
+	if ambient_player != null:
 		ambient_player.play()
 
 # ============================================================================
