@@ -23,27 +23,28 @@ func _unhandled_input(event: InputEvent) -> void:
 		var mouse_motion: InputEventMouseMotion = event
 		get_parent().rotate_y(-mouse_motion.relative.x * mouse_sensitivity)
 		pitch = clamp(pitch - mouse_motion.relative.y * mouse_sensitivity, min_pitch, max_pitch)
-		camera.rotation.x = pitch
+		if camera != null:
+			camera.rotation.x = pitch
 
 func _process(delta: float) -> void:
 	update_head_bob(delta)
 
 func update_head_bob(delta: float) -> void:
-	if get_parent() == null:
+	var parent = get_parent()
+	if parent == null:
 		return
 
-	var player: CharacterBody3D = get_parent()
-	var moving = player.velocity.length() > 0.1
-	var sprinting = player.is_sprinting
+	var moving: bool = parent.velocity.length() > 0.1
+	var sprinting: bool = parent.is_sprinting
 
-	if moving and player.is_on_floor():
+	if moving and parent.is_on_floor():
 		bob_time += delta * bob_speed
-		var current_bob = bob_amount
+		var current_bob: float = bob_amount
 		if sprinting:
 			current_bob *= sprint_bob_multiplier
 
-		var x_bob = sin(bob_time) * current_bob
-		var y_bob = cos(bob_time * 2.0) * current_bob * 0.5
+		var x_bob: float = sin(bob_time) * current_bob
+		var y_bob: float = cos(bob_time * 2.0) * current_bob * 0.5
 		position = base_position + Vector3(x_bob, y_bob, 0.0)
 	else:
 		bob_time = 0.0
