@@ -12,16 +12,23 @@ extends Node3D
 var pitch: float = 0.0
 var base_position: Vector3
 var bob_time: float = 0.0
+var player: Node3D
 
 func _ready() -> void:
 	base_position = position
+	player = get_parent()
+	
 	if camera == null:
 		push_warning("Head node is missing a Camera3D child.")
+	
+	if player == null:
+		push_warning("Head node must be a child of Player.")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var mouse_motion: InputEventMouseMotion = event
-		get_parent().rotate_y(-mouse_motion.relative.x * mouse_sensitivity)
+		if player != null:
+			player.rotate_y(-mouse_motion.relative.x * mouse_sensitivity)
 		pitch = clamp(pitch - mouse_motion.relative.y * mouse_sensitivity, min_pitch, max_pitch)
 		if camera != null:
 			camera.rotation.x = pitch
@@ -30,14 +37,18 @@ func _process(delta: float) -> void:
 	update_head_bob(delta)
 
 func update_head_bob(delta: float) -> void:
-	var parent = get_parent()
-	if parent == null:
+	if player == null:
 		return
+	
+	# Access player properties safely
+	var player_cast = player as CharacterBody3D
+	if player_cast == null:
+		return
+	
+	var moving: bool = player_cast.current_speed > 0.1
+	var sprinting: bool = player_cast.is_sprinting
 
-	var moving: bool = parent.velocity.length() > 0.1
-	var sprinting: bool = parent.is_sprinting
-
-	if moving and parent.is_on_floor():
+	if moving and player_cast.is_on_floor():
 		bob_time += delta * bob_speed
 		var current_bob: float = bob_amount
 		if sprinting:
